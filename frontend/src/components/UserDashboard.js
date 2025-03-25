@@ -960,6 +960,7 @@ function UserDashboard() {
                     onClick={handleRefresh}
                     disabled={refreshing}
                   >
+                    <FaSync className={`refresh-icon ${refreshing ? 'spinning' : ''}`} />
                     {refreshing ? 'Refreshing...' : ''}
                   </button>
                   <button 
