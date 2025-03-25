@@ -47,7 +47,7 @@ function AdminDashboard() {
   });
 
   const [entriesData, setEntriesData] = useState({
-    entries: [], 
+    entries: [], // Ensure entries is initialized as an empty array
     loading: true,
     error: null,
     totalEntries: 0,
@@ -407,20 +407,21 @@ function AdminDashboard() {
       const response = await axios.get(`${API_BASE_URL}/api/entries`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      const entries = Array.isArray(response.data) ? response.data : []; // Ensure response is an array
       setEntriesData(prev => ({
         ...prev,
-        entries: response.data || [], 
+        entries, 
         loading: false,
         error: null,
-        totalEntries: response.data.length,
+        totalEntries: entries.length,
         currentPage: 1,
-        totalPages: Math.ceil(response.data.length / 10)
+        totalPages: Math.ceil(entries.length / 10)
       }));
     } catch (error) {
       console.error('Error fetching entries:', error);
       setEntriesData(prev => ({
         ...prev,
-        entries: [], 
+        entries: [], // Fallback to an empty array on error
         loading: false,
         error: error.response?.data?.message || 'Failed to fetch entries'
       }));
@@ -1523,7 +1524,7 @@ function AdminDashboard() {
   // }, [entriesData.entries]);
 
   const getUniqueValues = useMemo(() => {
-    if (!entriesData.entries || entriesData.entries.length === 0) {
+    if (!Array.isArray(entriesData.entries) || entriesData.entries.length === 0) {
       return {
         date: [],
         driverName: [],
@@ -2104,13 +2105,13 @@ function AdminDashboard() {
             className={`menu-item ${activeSection === 'entries' ? 'active' : ''}`}
             onClick={() => setActiveSection('entries')}
           >
-            <FaClipboardList /> Loading Entries
+            <FaClipboardList /> Outward Entries
           </button>
           <button 
             className={`menu-item ${activeSection === 'invoices' ? 'active' : ''}`}
             onClick={() => setActiveSection('invoices')}
           >
-            <FaFileInvoice /> Unloading Entries
+            <FaFileInvoice /> Inward Entries
           </button>
           <button 
             className={`menu-item ${activeSection === 'users' ? 'active' : ''}`}
