@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config';
 import './EntryForm.css';
-import { debounce } from 'lodash'; // Import debounce function
 
 const EntryForm = ({ onSubmitSuccess, addNotification }) => {
   const [formData, setFormData] = useState({
@@ -17,8 +16,6 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
     remarks: ''
   });
 
-  const [sourceSuggestions, setSourceSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [submitState, setSubmitState] = useState({
     loading: false,
     success: false,
@@ -59,25 +56,6 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // Debounced function to handle source input
-  const handleSourceInput = debounce(async (value) => {
-    if (value.length >= 2) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_BASE_URL}/api/sources/suggest?query=${value}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setSourceSuggestions(response.data);
-        setShowSuggestions(true);
-      } catch (error) {
-        console.error('Error fetching source suggestions:', error);
-      }
-    } else {
-      setSourceSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, 500); // Debounce API call by 500ms
-
   const handleDriverMobileChange = async (value) => {
     setFormData(prev => ({
       ...prev,
@@ -90,14 +68,79 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
         const response = await axios.get(`${API_BASE_URL}/api/driver-info/${value}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setFormData(prev => ({
-          ...prev,
-          driverName: response.data.driverName
-        }));
+
+        if (response.data && response.data.driverName) {
+          setFormData(prev => ({
+            ...prev,
+            driverName: response.data.driverName // Ensure driverName is updated
+          }));
+          addNotification('Driver found', 'success'); // Notify when driver is found
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            driverName: '' // Clear driverName if not found
+          }));
+          addNotification('Driver not found', 'info'); // Notify when driver is not found
+        }
       } catch (error) {
-        console.error('Error fetching driver info:', error);
-        addNotification('Driver not found', 'error');
+        if (error.response?.status === 404) {
+          // Handle case where driver is not found
+          setFormData(prev => ({
+            ...prev,
+            driverName: '' // Clear driverName if not found
+          }));
+          addNotification('Driver not found. Please enter a new driver name.', 'info');
+        } else {
+          console.error('Error fetching driver info:', error);
+          addNotification('Error fetching driver info', 'error');
+        }
       }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        driverName: '' // Clear driverName if input is invalid
+      }));
+    }
+  };
+
+  const handleVehicleNumberChange = async (value) => {
+    setFormData(prev => ({
+      ...prev,
+      vehicleNumber: value
+    }));
+
+    if (value.length > 0) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_BASE_URL}/api/vehicle-info/${value}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data && response.data.vehicleType) {
+          setFormData(prev => ({
+            ...prev,
+            vehicleType: response.data.vehicleType // Update vehicleType if found
+          }));
+          addNotification('Vehicle found', 'success'); // Notify when vehicle is found
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          // Handle case where vehicle is not found
+          setFormData(prev => ({
+            ...prev,
+            vehicleType: '' // Clear vehicleType if not found
+          }));
+          addNotification('Vehicle not found. Please enter a new vehicle type.', 'info');
+        } else {
+          console.error('Error fetching vehicle info:', error);
+          addNotification('Error fetching vehicle info', 'error');
+        }
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        vehicleType: '' // Clear vehicleType if input is invalid
+      }));
     }
   };
 
@@ -106,24 +149,14 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
 
     if (name === 'driverMobile') {
       handleDriverMobileChange(value);
+    } else if (name === 'vehicleNumber') {
+      handleVehicleNumberChange(value);
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
     }
-
-    if (name === 'source') {
-      handleSourceInput(value);
-    }
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    setFormData(prev => ({
-      ...prev,
-      source: suggestion
-    }));
-    setShowSuggestions(false);
   };
 
   const handleSubmit = async (e) => {
@@ -261,7 +294,7 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
             id="vehicleNumber"
             name="vehicleNumber"
             value={formData.vehicleNumber}
-            onChange={handleInputChange}
+            onChange={(e) => handleVehicleNumberChange(e.target.value)}
             className="form-control"
             required
           />
@@ -283,43 +316,31 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
       <div className="form-row">
         <div className="form-group">
           <label htmlFor="source">Source</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              id="source"
-              name="source"
-              value={formData.source}
-              onChange={handleInputChange}
-              className="form-control"
-              required
-            />
-            {showSuggestions && sourceSuggestions.length > 0 && (
-              <ul className="suggestions-list">
-                {sourceSuggestions.map((suggestion, index) => (
-                  <li
-                    key={index}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                  >
-                    {suggestion}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <select
+            id="source"
+            name="source"
+            value={formData.source}
+            onChange={handleInputChange}
+            className="form-control"
+            required
+          >
+            <option value="">Select Source</option>
+            <option value="Baddi Unit 1">Baddi Unit 1</option>
+            <option value="Baddi Unit 2">Baddi Unit 2</option>
+            <option value="Baddi Unit 3">Baddi Unit 3</option>
+          </select>
         </div>
         <div className="form-group">
           <label htmlFor="remarks">Remarks</label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              id="remarks"
-              name="remarks"
-              value={formData.remarks}
-              onChange={handleInputChange}
-              className="form-control"
-              required
-            />
-          </div>
+          <input
+            type="text"
+            id="remarks"
+            name="remarks"
+            value={formData.remarks}
+            onChange={handleInputChange}
+            className="form-control"
+            required
+          />
         </div>
       </div>
 

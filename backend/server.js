@@ -527,7 +527,7 @@ app.get('/api/vehicle-entries', verifyToken, async (req, res) => {
   }
 });
 
-// Save driver info and entry
+// Submit new entry
 app.post('/api/entries', verifyToken, hasEditAccess, async (req, res) => {
   try {
     const {
@@ -542,20 +542,13 @@ app.post('/api/entries', verifyToken, hasEditAccess, async (req, res) => {
       remarks
     } = req.body;
 
-    // Save driver info in driverinfo table
-    const saveDriverQuery = `
-      INSERT INTO driverinfo (driverMobile, driverName)
-      VALUES (?, ?)
-      ON DUPLICATE KEY UPDATE driverName = VALUES(driverName)
-    `;
-    await db.promise().query(saveDriverQuery, [driverMobile, driverName]);
-
-    // Save entry in entries table
+    // Set default values
     const timeOut = '';
     const checkBy = '';
     const loadingUnload = '';
     const userId = req.user.id;
 
+    // Insert into entries table
     const [result] = await db.promise().query(
       `INSERT INTO entries (
         userId, serialNumber, date, driverMobile, driverName, vehicleNumber, 
@@ -577,6 +570,14 @@ app.post('/api/entries', verifyToken, hasEditAccess, async (req, res) => {
         remarks,
         req.user.name
       ]
+    );
+
+    // Insert or update driverinfo table
+    await db.promise().query(
+      `INSERT INTO driverinfo (driverMobile, driverName) 
+       VALUES (?, ?) 
+       ON DUPLICATE KEY UPDATE driverName = ?`,
+      [driverMobile, driverName, driverName]
     );
 
     // Get the newly created entry
@@ -1217,21 +1218,32 @@ app.put('/api/change-password', verifyToken, async (req, res) => {
 });
 
 // Get driver info by mobile number
-app.get('/api/driver-info/:mobile', verifyToken, async (req, res) => {
-  try {
-    const { mobile } = req.params;
-    const query = 'SELECT driverName FROM driverinfo WHERE driverMobile = ? LIMIT 1';
-    const [results] = await db.promise().query(query, [mobile]);
+app.get('/api/driver-info/:mobile', verifyToken, (req, res) => {
+  const mobile = req.params.mobile.trim();
+  
+  // Validate mobile number format
+  if (!/^\d{10}$/.test(mobile)) {
+    return res.status(400).json({ message: 'Invalid mobile number format' });
+  }
 
+  const query = `
+    SELECT driverName 
+    FROM driverinfo
+    WHERE driverMobile = ? 
+    COLLATE utf8mb4_general_ci
+    LIMIT 1
+  `;
+  
+  db.query(query, [mobile], (err, results) => {
+    if (err) {
+      console.error('Error fetching driver info:', err);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
     if (results.length === 0) {
       return res.status(404).json({ message: 'Driver not found' });
     }
-
-    res.json({ driverName: results[0].driverName });
-  } catch (error) {
-    console.error('Error fetching driver info:', error);
-    res.status(500).json({ message: 'Failed to fetch driver info' });
-  }
+    res.json(results[0]);
+  });
 });
 
 // Save driver info
@@ -1265,7 +1277,8 @@ app.post('/api/driver-info', verifyToken, (req, res) => {
 
 // Get vehicle info by vehicle number
 app.get('/api/vehicle-info/:number', verifyToken, (req, res) => {
-  const vehicleNumber = req.params.number;
+  const vehicleNumber = req.params.number.trim();
+
   const query = 'SELECT vehicletype FROM vehicleinfo WHERE vehiclenumber = ?';
   
   db.query(query, [vehicleNumber], (err, results) => {
@@ -1276,7 +1289,6 @@ app.get('/api/vehicle-info/:number', verifyToken, (req, res) => {
     if (results.length === 0) {
       return res.status(404).json({ message: 'Vehicle not found' });
     }
-    // Return in camelCase to match frontend
     res.json({
       vehicleType: results[0].vehicletype
     });
