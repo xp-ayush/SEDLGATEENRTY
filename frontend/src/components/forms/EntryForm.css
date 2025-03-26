@@ -22,6 +22,8 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
+  height: 38px; /* Ensure consistent height for all input fields, including timeIn */
+  box-sizing: border-box; /* Include padding and border in height calculation */
 }
 
 .suggestions-list {

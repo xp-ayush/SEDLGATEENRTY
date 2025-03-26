@@ -527,7 +527,7 @@ app.get('/api/vehicle-entries', verifyToken, async (req, res) => {
   }
 });
 
-// Submit new entry
+// Save driver info and entry
 app.post('/api/entries', verifyToken, hasEditAccess, async (req, res) => {
   try {
     const {
@@ -542,7 +542,15 @@ app.post('/api/entries', verifyToken, hasEditAccess, async (req, res) => {
       remarks
     } = req.body;
 
-    // Set default values
+    // Save driver info in driverinfo table
+    const saveDriverQuery = `
+      INSERT INTO driverinfo (driverMobile, driverName)
+      VALUES (?, ?)
+      ON DUPLICATE KEY UPDATE driverName = VALUES(driverName)
+    `;
+    await db.promise().query(saveDriverQuery, [driverMobile, driverName]);
+
+    // Save entry in entries table
     const timeOut = '';
     const checkBy = '';
     const loadingUnload = '';
@@ -1209,32 +1217,21 @@ app.put('/api/change-password', verifyToken, async (req, res) => {
 });
 
 // Get driver info by mobile number
-app.get('/api/driver-info/:mobile', verifyToken, (req, res) => {
-  const mobile = req.params.mobile.trim();
-  
-  // Validate mobile number format
-  if (!/^\d{10}$/.test(mobile)) {
-    return res.status(400).json({ message: 'Invalid mobile number format' });
-  }
+app.get('/api/driver-info/:mobile', verifyToken, async (req, res) => {
+  try {
+    const { mobile } = req.params;
+    const query = 'SELECT driverName FROM driverinfo WHERE driverMobile = ? LIMIT 1';
+    const [results] = await db.promise().query(query, [mobile]);
 
-  const query = `
-    SELECT driverName 
-    FROM driverInfo 
-    WHERE driverMobile = ? 
-    COLLATE utf8mb4_general_ci
-    LIMIT 1
-  `;
-  
-  db.query(query, [mobile], (err, results) => {
-    if (err) {
-      console.error('Error fetching driver info:', err);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
     if (results.length === 0) {
       return res.status(404).json({ message: 'Driver not found' });
     }
-    res.json(results[0]);
-  });
+
+    res.json({ driverName: results[0].driverName });
+  } catch (error) {
+    console.error('Error fetching driver info:', error);
+    res.status(500).json({ message: 'Failed to fetch driver info' });
+  }
 });
 
 // Save driver info

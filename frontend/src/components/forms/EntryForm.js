@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config';
 import './EntryForm.css';
+import { debounce } from 'lodash'; // Import debounce function
 
 const EntryForm = ({ onSubmitSuccess, addNotification }) => {
   const [formData, setFormData] = useState({
@@ -58,19 +59,8 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    if (name === 'source') {
-      handleSourceInput(value);
-    }
-  };
-
-  const handleSourceInput = async (value) => {
+  // Debounced function to handle source input
+  const handleSourceInput = debounce(async (value) => {
     if (value.length >= 2) {
       try {
         const token = localStorage.getItem('token');
@@ -85,6 +75,46 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
     } else {
       setSourceSuggestions([]);
       setShowSuggestions(false);
+    }
+  }, 500); // Debounce API call by 500ms
+
+  const handleDriverMobileChange = async (value) => {
+    setFormData(prev => ({
+      ...prev,
+      driverMobile: value
+    }));
+
+    if (value.length === 10) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_BASE_URL}/api/driver-info/${value}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setFormData(prev => ({
+          ...prev,
+          driverName: response.data.driverName
+        }));
+      } catch (error) {
+        console.error('Error fetching driver info:', error);
+        addNotification('Driver not found', 'error');
+      }
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === 'driverMobile') {
+      handleDriverMobileChange(value);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+
+    if (name === 'source') {
+      handleSourceInput(value);
     }
   };
 
@@ -172,14 +202,10 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
             id="date"
             name="date"
             value={formData.date}
-            onChange={handleInputChange}
             className="form-control"
-            required
+            readOnly // Make the field non-editable
           />
         </div>
-      </div>
-
-      <div className="form-row">
         <div className="form-group">
           <label htmlFor="timeIn">Time In</label>
           <input
@@ -201,9 +227,16 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
             id="driverMobile"
             name="driverMobile"
             value={formData.driverMobile}
-            onChange={handleInputChange}
+            onChange={(e) => handleDriverMobileChange(e.target.value)}
+            onKeyPress={(e) => {
+              if (!/[0-9]/.test(e.key)) {
+                e.preventDefault(); // Prevent non-numeric input
+              }
+            }}
             className="form-control"
             required
+            inputMode="numeric" // Optimize for numeric keyboard on mobile devices
+            maxLength="10" // Restrict input to 10 characters
           />
         </div>
         <div className="form-group">
@@ -274,19 +307,19 @@ const EntryForm = ({ onSubmitSuccess, addNotification }) => {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="form-row">
         <div className="form-group">
           <label htmlFor="remarks">Remarks</label>
-          <textarea
-            id="remarks"
-            name="remarks"
-            value={formData.remarks}
-            onChange={handleInputChange}
-            className="form-control"
-            rows="3"
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              id="remarks"
+              name="remarks"
+              value={formData.remarks}
+              onChange={handleInputChange}
+              className="form-control"
+              required
+            />
+          </div>
         </div>
       </div>
 
