@@ -1413,10 +1413,12 @@ app.get('/api/view-entries', verifyToken, hasViewAccess, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
     
+    console.log('Fetching entries with params:', { page, limit, offset }); // Log request parameters
+
     const [entries] = await db.promise().query(
       `SELECT e.*, d.driverName 
        FROM entries e 
-       LEFT JOIN driver_info d ON e.driverMobile = d.driverMobile 
+       LEFT JOIN driverinfo d ON e.driverMobile = d.driverMobile 
        ORDER BY e.date DESC 
        LIMIT ? OFFSET ?`,
       [limit, offset]
@@ -1424,6 +1426,7 @@ app.get('/api/view-entries', verifyToken, hasViewAccess, async (req, res) => {
 
     const [[{ total }]] = await db.promise().query('SELECT COUNT(*) as total FROM entries');
     
+    console.log('Entries fetched:', entries); // Log fetched entries
     res.json({
       entries,
       pagination: {

@@ -393,7 +393,7 @@ function AdminDashboard() {
   const fetchEntries = useCallback(async () => {
     const token = getToken();
     if (!token) {
-      addNotification('Session expired. Please login again', 'error');
+      addNotification('Authorization token is missing. Please log in again.', 'error');
       navigate('/login');
       return;
     }
@@ -403,31 +403,38 @@ function AdminDashboard() {
       loading: true,
       error: null
     }));
+
     try {
       const response = await axios.get(`${API_BASE_URL}/api/entries`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: entriesData.currentPage,
+          limit: pagination.itemsPerPage,
+          ...filters
+        }
       });
-      const entries = Array.isArray(response.data) ? response.data : []; // Ensure response is an array
-      setEntriesData(prev => ({
-        ...prev,
-        entries, 
-        loading: false,
-        error: null,
-        totalEntries: entries.length,
-        currentPage: 1,
-        totalPages: Math.ceil(entries.length / 10)
-      }));
+
+      if (response.data) {
+        setEntriesData({
+          entries: response.data.entries || [],
+          loading: false,
+          error: null,
+          totalEntries: response.data.totalEntries || 0,
+          currentPage: response.data.currentPage || 1,
+          totalPages: response.data.totalPages || 1
+        });
+      } else {
+        throw new Error('Invalid data format received from server');
+      }
     } catch (error) {
-      console.error('Error fetching entries:', error);
+      console.error('Error fetching entries:', error.message || error);
       setEntriesData(prev => ({
         ...prev,
-        entries: [], // Fallback to an empty array on error
         loading: false,
-        error: error.response?.data?.message || 'Failed to fetch entries'
+        error: error.message || 'Failed to fetch entries'
       }));
-      addNotification(error.response?.data?.message || 'Failed to fetch entries', 'error');
     }
-  }, [getToken]);
+  }, [getToken, entriesData.currentPage, pagination.itemsPerPage, filters, navigate]);
 
   const fetchUsers = useCallback(async () => {
     const token = getToken();

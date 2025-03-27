@@ -38,12 +38,16 @@ const ViewDashboard = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const endpoint = activeTab === 'entries' ? 'entries' : 'invoices';
-      
+      if (!token) {
+        throw new Error('Authorization token is missing. Please log in again.');
+      }
+
+      const endpoint = activeTab === 'entries' ? 'view-entries' : 'invoices';
       const response = await axios.get(`${API_BASE_URL}/api/${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           page: currentPage,
+          limit: 10,
           ...filters,
           sortKey: sortConfig.key,
           sortDir: sortConfig.direction
@@ -51,15 +55,16 @@ const ViewDashboard = () => {
       });
 
       if (response.data) {
-        setData(response.data[endpoint] || []);
-        setTotalPages(response.data.totalPages || 1);
+        console.log('API Response:', response.data); // Log API response for debugging
+        setData(response.data.entries || response.data.invoices || []);
+        setTotalPages(response.data.pagination?.totalPages || response.data.totalPages || 1);
       } else {
         throw new Error('Invalid data format received from server');
       }
       setError(null);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError(`Failed to load ${activeTab}. Please try again later.`);
+      console.error('Error fetching data:', error.message || error);
+      setError(`Failed to load ${activeTab}. ${error.message || 'Please try again later.'}`);
       setData([]);
     } finally {
       setLoading(false);
