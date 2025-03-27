@@ -119,11 +119,11 @@ function AdminDashboard() {
   });
 
   const [stats, setStats] = useState({
-    totalEntries: 0,
-    todayEntries: 0,
-    totalUsers: 0,
-    pendingEntries: 0,
-    activeUsers: 0
+    totalEntries: 18,
+    todayEntries: 6,
+    totalUsers: 12,
+    pendingEntries: 12,
+    activeUsers: 1
   });
 
   const [refreshing, setRefreshing] = useState(false);
@@ -1886,7 +1886,7 @@ function AdminDashboard() {
               </th>
               <th>Time In/Out</th>
               <th>Remarks</th>
-              <th>Actions</th>
+              {/* <th>Actions</th> */}
             </tr>
           </thead>
           <tbody>
@@ -1927,7 +1927,7 @@ function AdminDashboard() {
                   </div>
                 </td>
                 <td>{entry.remarks || 'N/A'}</td>
-                <td>
+                {/* <td>
                   <div className="action-buttons">
                     <button
                       className="edit-btn"
@@ -1944,7 +1944,7 @@ function AdminDashboard() {
                       <FaTrash />
                     </button>
                   </div>
-                </td>
+                </td> */}
               </tr>
             ))}
           </tbody>
@@ -2353,7 +2353,7 @@ function AdminDashboard() {
                 <FaTimes />
               </button>
             </div>
-            <div className="modal-form">
+            {/* <div className="modal-form">
               <p>Are you sure you want to delete this entry?</p>
               <div className="modal-actions">
                 <button 
@@ -2369,7 +2369,7 @@ function AdminDashboard() {
                   Cancel
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       )}
@@ -2387,7 +2387,7 @@ function AdminDashboard() {
                 <FaTimes />
               </button>
             </div>
-            <div className="modal-form">
+            {/* <div className="modal-form">
               <p>Are you sure you want to delete user {userToDelete?.name}?</p>
               <div className="modal-actions">
                 <button 
@@ -2403,7 +2403,7 @@ function AdminDashboard() {
                   Cancel
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       )}

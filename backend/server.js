@@ -580,6 +580,14 @@ app.post('/api/entries', verifyToken, hasEditAccess, async (req, res) => {
       [driverMobile, driverName, driverName]
     );
 
+    // Insert or update vehicleinfo table
+    await db.promise().query(
+      `INSERT INTO vehicleinfo (vehiclenumber, vehicletype) 
+       VALUES (?, ?) 
+       ON DUPLICATE KEY UPDATE vehicletype = ?`,
+      [vehicleNumber, vehicleType, vehicleType]
+    );
+
     // Get the newly created entry
     const [entries] = await db.promise().query(
       'SELECT * FROM entries WHERE id = ?',
